@@ -2,6 +2,7 @@
 - This inventory is for those who don't plan to update their QBCore for now.
 - Make sure that your core is version 1.2.5 or below because the new inventory update changes most of the features and will not support versions 1.2.6 or above.
 - And for the design inspired by the PS layout and AXFW design...
+- No support will be provided
 
 ## Dependencies
 - [ox_lib](https://github.com/overextended/ox_lib/releases/tag/v3.22.1)
@@ -17,6 +18,7 @@
 - Shops
 - Item Drops
 - Decay
+- Weapons Repair
 
 ## Installation
 ### Manual
