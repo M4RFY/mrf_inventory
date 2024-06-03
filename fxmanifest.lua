@@ -1,37 +1,44 @@
 fx_version 'cerulean'
 game 'gta5'
 lua54 'yes'
-author 'Kakarot'
-description 'Player inventory system providing a variety of features for storing and managing items'
-version '2.0.0'
+
+description 'Inventory for QBCore V1.2.5 or Below'
+version '1.9.9'
 
 shared_scripts {
-    '@qb-core/shared/locale.lua',
-    'locales/en.lua',
-    'locales/*.lua',
-    'config/*.lua',
-}
-
-client_scripts {
-    'client/main.lua',
-    'client/drops.lua',
-    'client/vehicles.lua',
+	'@ox_lib/init.lua',
+	'shared/*.lua'
 }
 
 server_scripts {
-    '@oxmysql/lib/MySQL.lua',
+	'@oxmysql/lib/MySQL.lua',
+	'server/functions.lua',
+    'server/weapons.lua',
     'server/main.lua',
-    'server/functions.lua',
-    'server/commands.lua',
+    'server/commands.lua'
 }
 
-ui_page 'html/index.html'
+client_scripts {
+	'client/functions.lua',
+	'client/nui.lua',
+    'client/weapons.lua',
+	'client/main.lua',
+    'client/binds.lua'
+}
+
+ui_page {
+	'html/ui.html'
+}
 
 files {
-    'html/index.html',
-    'html/main.css',
-    'html/app.js',
-    'html/images/*.png',
+	'html/ui.html',
+	'html/css/main.css',
+	'html/js/app.js',
+	'html/images/*.png',
+	'html/ammo_images/*.png',
+    'html/attachment_images/*.png',
+	'html/sounds/*.mp3',
+	'weaponsnspistol.meta'
 }
 
-dependency 'qb-weapons'
+data_file 'WEAPONINFO_FILE_PATCH' 'weaponsnspistol.meta'

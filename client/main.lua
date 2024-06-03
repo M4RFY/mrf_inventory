@@ -1,17 +1,29 @@
-QBCore = exports['qb-core']:GetCoreObject()
-local hotbarShown = false
+-- Events
 
--- Handlers
+RegisterNetEvent('QBCore:Player:SetPlayerData', function(PlayerData)
+    if isHotbar then
+        SendNUIMessage({
+            action = 'toggleHotbar',
+            open = true,
+            items = GetHotbarItems(PlayerData.items)
+        })
+    end
+end)
 
 RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
     LocalPlayer.state:set('inv_busy', false, true)
     PlayerData = QBCore.Functions.GetPlayerData()
-    GetDrops()
+    isPlayerLand = true
+    QBCore.Functions.TriggerCallback('inventory:server:GetCurrentDrops', function(theDrops)
+		Drops = theDrops
+    end)
 end)
 
 RegisterNetEvent('QBCore:Client:OnPlayerUnload', function()
     LocalPlayer.state:set('inv_busy', true, true)
     PlayerData = {}
+    RemoveAllNearbyDrops()
+    isPlayerLand = false
 end)
 
 RegisterNetEvent('QBCore:Client:UpdateObject', function()
@@ -22,91 +34,46 @@ RegisterNetEvent('QBCore:Player:SetPlayerData', function(val)
     PlayerData = val
 end)
 
-AddEventHandler('onResourceStart', function(resourceName)
-    if resourceName == GetCurrentResourceName() then
-        PlayerData = QBCore.Functions.GetPlayerData()
+RegisterNetEvent('inventory:client:closeinv', function()
+    closeInventory()
+end)
+
+RegisterNetEvent('inventory:client:CheckOpenState', function(type, id, label)
+    local name = QBCore.Shared.SplitStr(label, '-')[2]
+    if type == 'stash' then
+        if name ~= CurrentStash or CurrentStash == nil then
+            TriggerServerEvent('inventory:server:SetIsOpenState', false, type, id)
+        end
+    elseif type == 'trunk' then
+        if name ~= CurrentVehicle or CurrentVehicle == nil then
+            TriggerServerEvent('inventory:server:SetIsOpenState', false, type, id)
+        end
+    elseif type == 'glovebox' then
+        if name ~= CurrentGlovebox or CurrentGlovebox == nil then
+            TriggerServerEvent('inventory:server:SetIsOpenState', false, type, id)
+        end
+    elseif type == 'drop' then
+        if name ~= CurrentDrop or CurrentDrop == nil then
+            TriggerServerEvent('inventory:server:SetIsOpenState', false, type, id)
+        end
     end
 end)
 
--- Functions
+RegisterNetEvent('inventory:client:ItemBox', function(itemData, type, amount)
+    amount = amount or 1
+    SendNUIMessage({
+        action = 'itemBox',
+        item = itemData,
+        type = type,
+        itemAmount = amount
+    })
+end)
 
-function LoadAnimDict(dict)
-    if HasAnimDictLoaded(dict) then return end
-
-    RequestAnimDict(dict)
-    while not HasAnimDictLoaded(dict) do
-        Wait(10)
-    end
-end
-
-local function FormatWeaponAttachments(itemdata)
-    if not itemdata.info or not itemdata.info.attachments or #itemdata.info.attachments == 0 then
-        return {}
-    end
-    local attachments = {}
-    local weaponName = itemdata.name
-    local WeaponAttachments = exports['qb-weapons']:getConfigWeaponAttachments()
-    if not WeaponAttachments then return {} end
-    for attachmentType, weapons in pairs(WeaponAttachments) do
-        local componentHash = weapons[weaponName]
-        if componentHash then
-            for _, attachmentData in pairs(itemdata.info.attachments) do
-                if attachmentData.component == componentHash then
-                    local label = QBCore.Shared.Items[attachmentType] and QBCore.Shared.Items[attachmentType].label or 'Unknown'
-                    attachments[#attachments + 1] = {
-                        attachment = attachmentType,
-                        label = label
-                    }
-                end
-            end
-        end
-    end
-    return attachments
-end
-
---- Checks if the player has a certain item or items in their inventory with a specified amount.
---- @param items string|table - The item(s) to check for. Can be a table of items or a single item as a string.
---- @param amount number [optional] - The minimum amount required for each item. If not provided, any amount greater than 0 will be considered.
---- @return boolean - Returns true if the player has the item(s) with the specified amount, false otherwise.
-function HasItem(items, amount)
-    local isTable = type(items) == 'table'
-    local isArray = isTable and table.type(items) == 'array' or false
-    local totalItems = isArray and #items or 0
-    local count = 0
-
-    if isTable and not isArray then
-        for _ in pairs(items) do totalItems = totalItems + 1 end
-    end
-
-    for _, itemData in pairs(PlayerData.items) do
-        if isTable then
-            for k, v in pairs(items) do
-                if itemData and itemData.name == (isArray and v or k) and ((amount and itemData.amount >= amount) or (not isArray and itemData.amount >= v) or (not amount and isArray)) then
-                    count = count + 1
-                    if count == totalItems then
-                        return true
-                    end
-                end
-            end
-        else -- Single item as string
-            if itemData and itemData.name == items and (not amount or (itemData and amount and itemData.amount >= amount)) then
-                return true
-            end
-        end
-    end
-
-    return false
-end
-
-exports('HasItem', HasItem)
-
--- Events
-
-RegisterNetEvent('qb-inventory:client:requiredItems', function(items, bool)
+RegisterNetEvent('inventory:client:requiredItems', function(items, bool)
     local itemTable = {}
     if bool then
         for k in pairs(items) do
-            itemTable[#itemTable + 1] = {
+            itemTable[#itemTable+1] = {
                 item = items[k].name,
                 label = QBCore.Shared.Items[items[k].name]['label'],
                 image = items[k].image,
@@ -121,194 +88,295 @@ RegisterNetEvent('qb-inventory:client:requiredItems', function(items, bool)
     })
 end)
 
-RegisterNetEvent('qb-inventory:client:hotbar', function(items)
-    hotbarShown = not hotbarShown
-    SendNUIMessage({
-        action = 'toggleHotbar',
-        open = hotbarShown,
-        items = items
-    })
-end)
-
-RegisterNetEvent('qb-inventory:client:closeInv', function()
-    SendNUIMessage({
-        action = 'close',
-    })
-end)
-
-RegisterNetEvent('qb-inventory:client:updateInventory', function()
-    SendNUIMessage({
-        action = 'update',
-        inventory = PlayerData.items
-    })
-end)
-
-RegisterNetEvent('qb-inventory:client:ItemBox', function(itemData, type, amount)
-    SendNUIMessage({
-        action = 'itemBox',
-        item = itemData,
-        type = type,
-        amount = amount
-    })
-end)
-
-RegisterNetEvent('qb-inventory:server:RobPlayer', function(TargetId)
+RegisterNetEvent('inventory:server:RobPlayer', function(TargetId)
     SendNUIMessage({
         action = 'RobMoney',
         TargetId = TargetId,
     })
 end)
 
-RegisterNetEvent('qb-inventory:client:openInventory', function(items, other)
-    SetNuiFocus(true, true)
-    SendNUIMessage({
-        action = 'open',
-        inventory = items,
-        slots = Config.MaxSlots,
-        maxweight = Config.MaxWeight,
-        other = other
-    })
-end)
-
-RegisterNetEvent('qb-inventory:client:giveAnim', function()
-    if IsPedInAnyVehicle(PlayerPedId(), false) then return end
-    LoadAnimDict('mp_common')
-    TaskPlayAnim(PlayerPedId(), 'mp_common', 'givetake1_b', 8.0, 1.0, -1, 16, 0, false, false, false)
-end)
-
--- NUI Callbacks
-
-RegisterNUICallback('PlayDropFail', function(_, cb)
-    PlaySound(-1, 'Place_Prop_Fail', 'DLC_Dmod_Prop_Editor_Sounds', 0, 0, 1)
-    cb('ok')
-end)
-
-RegisterNUICallback('AttemptPurchase', function(data, cb)
-    QBCore.Functions.TriggerCallback('qb-inventory:server:attemptPurchase', function(canPurchase)
-        cb(canPurchase)
-    end, data)
-end)
-
-RegisterNUICallback('CloseInventory', function(data, cb)
-    SetNuiFocus(false, false)
-    if data.name then
-        if data.name:find('trunk-') then
-            CloseTrunk()
-        end
-        TriggerServerEvent('qb-inventory:server:closeInventory', data.name)
-    elseif CurrentDrop then
-        TriggerServerEvent('qb-inventory:server:closeInventory', CurrentDrop)
-        CurrentDrop = nil
+RegisterNetEvent('inventory:client:OpenInventory', function(PlayerAmmo, inventory, other, time)
+    if IsEntityDead(cache.ped) then
+        lib.notify({
+            title = 'Inventory',
+            description = 'You can\'t access while dead!',
+            type = 'error'
+        })
+        return
     end
-    cb('ok')
-end)
 
-RegisterNUICallback('UseItem', function(data, cb)
-    TriggerServerEvent('qb-inventory:server:useItem', data.item)
-    cb('ok')
-end)
+    local isInventory, isOther = DecayInventory(inventory, other, time)
 
-RegisterNUICallback('SetInventoryData', function(data, cb)
-    TriggerServerEvent('qb-inventory:server:SetInventoryData', data.fromInventory, data.toInventory, data.fromSlot, data.toSlot, data.fromAmount, data.toAmount)
-    cb('ok')
-end)
+    local function OpenInventory()
+        ToggleHotbar(false)
+        if showBlur then
+            TriggerScreenblurFadeIn(1000)
+        end
+        SetNuiFocus(true, true)
+        if other then
+            currentOtherInventory = other.name
+        end
+        SendNUIMessage({
+            action = 'open',
+            inventory = isInventory,
+            other = isOther,
+            slots = Shared.MaxInventorySlots,
+            maxweight = Shared.MaxInventoryWeight,
+            Ammo = PlayerAmmo,
+            Name = PlayerData.charinfo.firstname ..' '.. PlayerData.charinfo.lastname
+        })
+        inInventory = true
+    end
 
-RegisterNUICallback('GiveItem', function(data, cb)
-    local player, distance = QBCore.Functions.GetClosestPlayer(GetEntityCoords(PlayerPedId()))
-    if player ~= -1 and distance < 3 then
-        local playerId = GetPlayerServerId(player)
-        QBCore.Functions.TriggerCallback('qb-inventory:server:giveItem', function(success)
-            cb(success)
-        end, playerId, data.item.name, data.amount)
+    if Shared.Progressbar.Enable then
+        QBCore.Functions.Progressbar('open_inventory', 'Opening Inventory...', Shared.Progressbar.Time, false, true, {
+            disableMovement = false,
+            disableCarMovement = false,
+            disableMouse = false,
+            disableCombat = false,
+        }, {}, {}, {}, OpenInventory)
     else
-        QBCore.Functions.Notify(Lang:t('notify.nonb'), 'error')
-        cb(false)
+        Wait(500)
+        OpenInventory()
     end
 end)
 
-RegisterNUICallback('GetWeaponData', function(cData, cb)
-    local data = {
-        WeaponData = QBCore.Shared.Items[cData.weapon],
-        AttachmentData = FormatWeaponAttachments(cData.ItemData)
-    }
-    cb(data)
-end)
-
-RegisterNUICallback('RemoveAttachment', function(data, cb)
-    local ped = PlayerPedId()
-    local WeaponData = data.WeaponData
-    local allAttachments = exports['qb-weapons']:getConfigWeaponAttachments()
-    local Attachment = allAttachments[data.AttachmentData.attachment][WeaponData.name]
-    local itemInfo = QBCore.Shared.Items[data.AttachmentData.attachment]
-    QBCore.Functions.TriggerCallback('qb-weapons:server:RemoveAttachment', function(NewAttachments)
-        if NewAttachments ~= false then
-            local Attachies = {}
-            RemoveWeaponComponentFromPed(ped, joaat(WeaponData.name), joaat(Attachment))
-            for _, v in pairs(NewAttachments) do
-                for attachmentType, weapons in pairs(allAttachments) do
-                    local componentHash = weapons[WeaponData.name]
-                    if componentHash and v.component == componentHash then
-                        local label = itemInfo and itemInfo.label or 'Unknown'
-                        Attachies[#Attachies + 1] = {
-                            attachment = attachmentType,
-                            label = label,
-                        }
-                    end
-                end
-            end
-            local DJATA = {
-                Attachments = Attachies,
-                WeaponData = WeaponData,
-                itemInfo = itemInfo,
-            }
-            cb(DJATA)
-        else
-            RemoveWeaponComponentFromPed(ped, joaat(WeaponData.name), joaat(Attachment))
-            cb({})
-        end
-    end, data.AttachmentData, WeaponData)
-end)
-
--- Vending
-
-CreateThread(function()
-    exports['qb-target']:AddTargetModel(Config.VendingObjects, {
-        options = {
-            {
-                type = 'server',
-                event = 'qb-inventory:server:openVending',
-                icon = 'fa-solid fa-cash-register',
-                label = Lang:t('menu.vending'),
-            },
-        },
-        distance = 2.5
+RegisterNetEvent('inventory:client:UpdateOtherInventory', function(items, isError)
+    SendNUIMessage({
+        action = 'update',
+        inventory = items,
+        maxweight = Shared.MaxInventoryWeight,
+        slots = Shared.MaxInventorySlots,
+        error = isError,
     })
+end)
+
+RegisterNetEvent('inventory:client:UpdatePlayerInventory', function(isError)
+    SendNUIMessage({
+        action = 'update',
+        inventory = PlayerData.items,
+        maxweight = Shared.MaxInventoryWeight,
+        slots = Shared.MaxInventorySlots,
+        error = isError,
+    })
+end)
+
+RegisterNetEvent('inventory:client:UseWeapon', function(weaponData, shootbool)
+    local ped = cache.ped
+    local weaponName = tostring(weaponData.name)
+    local weaponHash = joaat(weaponData.name)
+    local weaponinhand = cache.weapon
+    if currentWeapon == weaponName and weaponinhand then
+        TriggerEvent('weapons:client:DrawWeapon', nil)
+        SetCurrentPedWeapon(ped, `WEAPON_UNARMED`, true)
+        RemoveAllPedWeapons(ped, true)
+        TriggerEvent('weapons:client:SetCurrentWeapon', nil, shootbool)
+        currentWeapon = nil
+    elseif Throwable(weaponName) then
+        TriggerEvent('weapons:client:DrawWeapon', weaponName)
+        GiveWeaponToPed(ped, weaponHash, 1, false, false)
+        SetPedAmmo(ped, weaponHash, 1)
+        SetCurrentPedWeapon(ped, weaponHash, true)
+        TriggerEvent('weapons:client:SetCurrentWeapon', weaponData, shootbool)
+        currentWeapon = weaponName
+    else
+        TriggerEvent('weapons:client:DrawWeapon', weaponName)
+        TriggerEvent('weapons:client:SetCurrentWeapon', weaponData, shootbool)
+        local ammo = tonumber(weaponData.info.ammo) or 0
+
+        if weaponName == 'weapon_fireextinguisher' then
+            ammo = 4000
+        end
+
+        GiveWeaponToPed(ped, weaponHash, ammo, false, false)
+		SetCurrentPedWeapon(ped, weaponHash, true)
+        local newweapon = GetSelectedPedWeapon(ped)
+        if newweapon ~= joaat(weaponName) then
+            return
+        end
+        SetPedAmmo(ped, weaponHash, ammo)
+
+        if weaponData.info.attachments then
+            for _, attachment in pairs(weaponData.info.attachments) do
+                GiveWeaponComponentToPed(ped, weaponHash, joaat(attachment.component))
+            end
+        end
+
+        currentWeapon = weaponName
+    end
+end)
+
+RegisterNetEvent('inventory:client:CheckWeapon', function()
+    local ped = cache.ped
+    TriggerEvent('weapons:ResetHolster')
+    SetCurrentPedWeapon(ped, `WEAPON_UNARMED`, true)
+    RemoveAllPedWeapons(ped, true)
+    currentWeapon = nil
+end)
+
+RegisterNetEvent('inventory:client:AddDropItem', function(dropId, player, coords)
+    local forward = GetEntityForwardVector(GetPlayerPed(GetPlayerFromServerId(player)))
+    local x, y, z = table.unpack(coords + forward * 0.5)
+    Drops[dropId] = {
+        id = dropId,
+        coords = {
+            x = x,
+            y = y,
+            z = z - 0.3,
+        },
+    }
+end)
+
+RegisterNetEvent('inventory:client:RemoveDropItem', function(dropId)
+    Drops[dropId] = nil
+    if Shared.UseItemDrop then
+        RemoveNearbyDrop(dropId)
+    else
+        DropsNear[dropId] = nil
+    end
+end)
+
+RegisterNetEvent('inventory:client:DropItemAnim', function()
+    local ped = cache.ped
+    SendNUIMessage({
+        action = 'close',
+    })
+    LoadAnimDict('pickup_object')
+    TaskPlayAnim(ped, 'pickup_object' ,'pickup_low' ,8.0, -8.0, -1, 1, 0, false, false, false )
+    Wait(2000)
+    ClearPedTasks(ped)
+end)
+
+RegisterNetEvent('inventory:client:SetCurrentStash', function(stash)
+    CurrentStash = stash
+end)
+
+RegisterNetEvent('inventory:client:giveAnim', function()
+    if IsPedInAnyVehicle(cache.ped, false) then
+        return
+    else
+        LoadAnimDict('mp_common')
+        TaskPlayAnim(cache.ped, 'mp_common', 'givetake1_b', 8.0, 1.0, -1, 16, 0, 0, 0, 0)
+    end
+end)
+
+AddEventHandler('onResourceStop', function(name)
+    if name ~= GetCurrentResourceName() then return end
+    if Shared.UseItemDrop then RemoveAllNearbyDrops() end
 end)
 
 -- Commands
 
-RegisterCommand('openInv', function()
-    if IsNuiFocused() or IsPauseMenuActive() then return end
-    ExecuteCommand('inventory')
+RegisterCommand('closeinv', function()
+    closeInventory()
 end, false)
 
-RegisterCommand('toggleHotbar', function()
-    ExecuteCommand('hotbar')
-end, false)
+-- Threads
 
-for i = 1, 5 do
-    RegisterCommand('slot_' .. i, function()
-        local itemData = PlayerData.items[i]
-        if not itemData then return end
-        if itemData.type == "weapon" then
-            if holdingDrop then
-                return QBCore.Functions.Notify("Your already holding a bag, Go Drop it!", "error", 5500)
+CreateThread(function()
+    while true do
+        isModifiedSpeed = GetPlayerSpeedPercentLoseFromWeight()
+        if isModifiedSpeed ~= 1.0 then
+            MakePlayerMoveSlower(cache.ped, isModifiedSpeed)
+        else
+            LastModifiedSpeed = 1.0
+        end
+        Wait(1000)
+    end
+end)
+
+CreateThread(function()
+    while true do
+        Wait(1000)
+        if hotbar then
+            local HotbarItems = {
+                [1] = QBCore.Functions.GetPlayerData().items[1],
+                [2] = QBCore.Functions.GetPlayerData().items[2],
+                [3] = QBCore.Functions.GetPlayerData().items[3],
+                [4] = QBCore.Functions.GetPlayerData().items[4],
+                [5] = QBCore.Functions.GetPlayerData().items[5],
+            }
+            SendNUIMessage({
+                action = 'toggleHotbar',
+                open = true,
+                items = HotbarItems
+            })
+        end
+    end
+end)
+
+CreateThread(function()
+    while true do
+        local sleep = 100
+        if DropsNear ~= nil then
+			local ped = cache.ped
+			local closestDrop = nil
+			local closestDistance = nil
+            for k, v in pairs(DropsNear) do
+
+                if DropsNear[k] ~= nil then
+                    if Shared.UseItemDrop then
+                        if not v.isDropShowing then
+                            CreateItemDrop(k)
+                        end
+                    else
+                        sleep = 0
+                        DrawMarker(20, v.coords.x, v.coords.y, v.coords.z, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.3, 0.15, 120, 10, 20, 155, false, false, false, 1, false, false, false)
+                    end
+
+					local coords = (v.object ~= nil and GetEntityCoords(v.object)) or vector3(v.coords.x, v.coords.y, v.coords.z)
+					local distance = #(GetEntityCoords(ped) - coords)
+					if distance < 3 and (not closestDistance or distance < closestDistance) then
+						closestDrop = k
+						closestDistance = distance
+                        ClearDrawOrigin()
+					end
+                end
+            end
+
+			if not closestDrop then
+				CurrentDrop = 0
+			else
+				CurrentDrop = closestDrop
+			end
+        end
+        Wait(sleep)
+    end
+end)
+
+CreateThread(function()
+    while true do
+        if Drops ~= nil and next(Drops) ~= nil then
+            local pos = GetEntityCoords(cache.ped, true)
+            for k, v in pairs(Drops) do
+                if Drops[k] ~= nil then
+                    local dist = #(pos - vector3(v.coords.x, v.coords.y, v.coords.z))
+                    if dist < Shared.MaxDropViewDistance then
+                        DropsNear[k] = v
+                    else
+                        if Shared.UseItemDrop and DropsNear[k] then
+                            RemoveNearbyDrop(k)
+                        else
+                            DropsNear[k] = nil
+                        end
+                    end
+                end
+            end
+        else
+            DropsNear = {}
+        end
+        Wait(500)
+    end
+end)
+
+CreateThread(function()
+    while true do
+        if isPlayerLand then
+            if PlayerData.metadata.ishandcuffed or PlayerData.metadata.isdead or PlayerData.metadata.inlaststand then
+                closeInventory()
+                ToggleHotbar(false)
             end
         end
-        TriggerServerEvent('qb-inventory:server:useItem', itemData)
-    end, false)
-    RegisterKeyMapping('slot_' .. i, Lang:t('inf_mapping.use_item') .. i, 'keyboard', i)
-end
-
-RegisterKeyMapping('openInv', Lang:t('inf_mapping.opn_inv'), 'keyboard', Config.Keybinds.Open)
-RegisterKeyMapping('toggleHotbar', Lang:t('inf_mapping.tog_slots'), 'keyboard', Config.Keybinds.Hotbar)
+        Wait(100)
+    end
+end)

@@ -1,40 +1,47 @@
-# qb-inventory
+## mrf_inventory
+- This inventory is for those who don't plan to update their QBCore for now.
+- Make sure that your core is version 1.2.5 or below because the new inventory update changes most of the features and will not support versions 1.2.6 or above.
+- And for the design inspired by the PS layout and AXFW design...
 
 ## Dependencies
+- [ox_lib](https://github.com/overextended/ox_lib/releases/tag/v3.22.1)
 - [qb-core](https://github.com/qbcore-framework/qb-core)
-- [qb-logs](https://github.com/qbcore-framework/qb-logs) - For logging transfer and other history
+- [qb-target](https://github.com/qbcore-framework/qb-target)
+- [interact](https://github.com/darktrovx/interact) - Optional
+- [qb-smallresources](https://github.com/qbcore-framework/qb-smallresources) - For logging transfer and other history
 
 ## Features
-- Stashes (Personal and/or Shared)
+- Stashes
 - Vehicle Trunk & Glovebox
 - Weapon Attachments
 - Shops
 - Item Drops
-
-## Documentation
-https://docs.qbcore.org/qbcore-documentation/qbcore-resources/qb-inventory
+- Decay
 
 ## Installation
 ### Manual
 - Download the script and put it in the `[qb]` directory.
-- Import `qb-inventory.sql` in your database
+- Download the script and put it in the `[qb]` directory.
+- Delete qb-weapons
+- Replace the 'mrf_' prefix with your prefix (e.g., 'qb-', 'ps-', 'lj-', etc.)
 - Add the following code to your server.cfg/resouces.cfg
 
-# Migrating from old qb-inventory
-
-## Database
-### Upload the new `inventory.sql` file to create the new `inventories` table
-### Use the provided `migrate.sql` file to migrate all of your saved inventory data from stashes, trunks, etc
-### Once complete, you can delete `gloveboxitems` `stashitems` and `trunkitems` tables from your database
-```sql
-CREATE TABLE IF NOT EXISTS `inventories` (
-  `id` INT(11) NOT NULL AUTO_INCREMENT,
-  `identifier` VARCHAR(50) NOT NULL,
-  `items` LONGTEXT DEFAULT ('[]'),
-  PRIMARY KEY (`identifier`),
-  KEY `id` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4;
+## Decay
+- ['decay'] = 24.0 - in hours
+### Example
+```lua
+    -- Old Format
+    ['sandwich']                       = { ['name'] = 'sandwich', ['label'] = 'Sandwich', ['weight'] = 200, ['type'] = 'item', ['image'] = 'sandwich.png', ['unique'] = false, ['useable'] = true, ['shouldClose'] = true, ['combinable'] = nil, ['description'] = 'Nice bread for your stomach', ['decay'] = 24.0 },
+    -- New Format
+    sandwich                     = { name = 'sandwich', label = 'Sandwich', weight = 200, type = 'item', image = 'sandwich.png', unique = false, useable = true, shouldClose = true, description = 'Nice bread for your stomach', decay = 24.0 },
 ```
+
+## Screenshots
+![Inventory](https://r2.fivemanage.com/daUBRfSCPD1ZUJhEpVqPi/inv.png)
+
+## Credits
+- [qb-inventory](https://github.com/qbcore-framework/qb-inventory) - For Base Code
+- [qb-weapons](https://github.com/DonHulieo/qb-weapons) - For Base Code
 
 # License
 
