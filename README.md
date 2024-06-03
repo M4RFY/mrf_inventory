@@ -43,6 +43,7 @@
 ## Credits
 - [qb-inventory](https://github.com/qbcore-framework/qb-inventory) - For Base Code
 - [qb-weapons](https://github.com/DonHulieo/qb-weapons) - For Base Code
+- [weight]() - I don't remember the creator. Please reach out to me.
 
 # License
 
