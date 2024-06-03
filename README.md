@@ -21,7 +21,6 @@
 ## Installation
 ### Manual
 - Download the script and put it in the `[qb]` directory.
-- Download the script and put it in the `[qb]` directory.
 - Delete qb-weapons
 - Replace the 'mrf_' prefix with your prefix (e.g., 'qb-', 'ps-', 'lj-', etc.)
 - Add the following code to your server.cfg/resouces.cfg
@@ -36,7 +35,7 @@
     sandwich                     = { name = 'sandwich', label = 'Sandwich', weight = 200, type = 'item', image = 'sandwich.png', unique = false, useable = true, shouldClose = true, description = 'Nice bread for your stomach', decay = 24.0 },
 ```
 
-## Screenshots
+## Screenshot
 ![Inventory](https://r2.fivemanage.com/daUBRfSCPD1ZUJhEpVqPi/inv.png)
 
 ## Credits
